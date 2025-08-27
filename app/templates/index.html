@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Query with Document</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        textarea, input, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 1rem; box-sizing: border-box; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .response-box { margin-top: 20px; padding: 10px; background: #e9f5e9; border-left: 4px solid #4CAF50; white-space: pre-wrap; }
+        .file-upload-container { 
+            border: 2px dashed #ccc; 
+            border-radius: 8px; 
+            padding: 20px; 
+            text-align: center; 
+            margin: 10px 0;
+            background: #fafafa;
+            transition: border-color 0.3s ease;
+        }
+        .file-upload-container:hover { border-color: #4CAF50; }
+        .file-upload-container.dragover { border-color: #4CAF50; background: #f0f8f0; }
+        .file-input { display: none; }
+        .file-label { 
+            cursor: pointer; 
+            color: #666; 
+            font-size: 0.9rem;
+        }
+        .file-label:hover { color: #4CAF50; }
+        .selected-file { 
+            margin-top: 10px; 
+            padding: 8px; 
+            background: #e8f5e8; 
+            border-radius: 4px; 
+            font-size: 0.9rem;
+            color: #2e7d32;
+        }
+        .remove-file { 
+            color: #d32f2f; 
+            cursor: pointer; 
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .optional-text { color: #666; font-size: 0.8rem; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Send Query with Document</h2>
+        <form action="/run-graph" method="post" enctype="multipart/form-data">
+            <textarea name="query" placeholder="Enter your query..." required></textarea>
+            <input type="file" name="document" accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.tiff">
+            <button type="submit">Send Query</button>
+        </form>
+        
+    </div>
+
+    <!-- for product table -->
+    <div id="productTables"></div>
+
+
+    <script>
+        const fileContainer = document.getElementById('fileContainer');
+        const fileInput = document.getElementById('document');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const data = await res.json();
+
+        // Drag and drop functionality
+        fileContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileContainer.classList.add('dragover');
+        });
+
+        fileContainer.addEventListener('dragleave', () => {
+            fileContainer.classList.remove('dragover');
+        });
+
+        fileContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileContainer.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                displaySelectedFile(files[0]);
+            }
+        });
+
+        // File input change handler
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                displaySelectedFile(e.target.files[0]);
+            }
+        });
+
+        function displaySelectedFile(file) {
+            selectedFileDiv.innerHTML = `
+                Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)
+                <span class="remove-file" onclick="removeFile()">✕</span>
+            `;
+            selectedFileDiv.style.display = 'block';
+        }
+
+        function removeFile() {
+            fileInput.value = '';
+            selectedFileDiv.style.display = 'none';
+        }
+
+        async function sendQuery() {
+            const query = document.getElementById('query').value.trim();
+            const file = document.getElementById('document').files[0];
+
+            if (!query) {
+                alert('Please enter a query.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("query", query);
+            
+            if (file) {
+                formData.append("document", file);
+            }
+
+            try {
+                const res = await fetch("/run-graph", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+                document.getElementById("response").innerText = JSON.stringify(data, null, 2);
+                document.getElementById("response").style.display = "block";
+            } catch (error) {
+                alert("Error: " + error);
+            }
+        }
+
+        // Show raw JSON (optional, debugging)
+        document.getElementById("response").innerText = JSON.stringify(data, null, 2);
+        document.getElementById("response").style.display = "block";
+
+        // Clear old tables
+        const productTables = document.getElementById("productTables");
+        productTables.innerHTML = "";
+
+        // Render product tables if available
+        if (data.product_data) {
+            for (const [productName, entries] of Object.entries(data.product_data)) {
+                const table = document.createElement("table");
+                table.border = "1";
+                table.style.marginBottom = "20px";
+                table.style.width = "100%";
+                table.style.borderCollapse = "collapse";
+
+                // Table header
+                const header = `
+                    <tr style="background:#f0f0f0">
+                        <th colspan="2">${productName}</th>
+                    </tr>`;
+                table.innerHTML = header;
+
+                // Each entry (e.g., Address, Contact, etc.)
+                entries.forEach(entry => {
+                    for (const [key, value] of Object.entries(entry)) {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td style="padding:8px; font-weight:bold">${key}</td>
+                            <td style="padding:8px">${value}</td>`;
+                        table.appendChild(row);
+                    }
+                });
+
+                productTables.appendChild(table);
+            }
+        } else {
+            productTables.innerHTML = "<p>No products found.</p>";
+        }
+
+    </script>
+</body>
+</html>

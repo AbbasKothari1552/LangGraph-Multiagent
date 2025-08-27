@@ -1,0 +1,31 @@
+langgraph
+langsmith
+langchain-groq
+langchain-community
+langchain-google-community
+python-dotenv
+IPython
+beautifulsoup4
+playwright
+selenium
+chromedriver-autoinstaller
+web-extract-data
+langchain-mcp-adapters
+# google-sheets-mcp
+streamlit
+# -> google spreadsheet connection
+google-api-python-client 
+google-auth-httplib2 
+google-auth-oauthlib 
+gspread
+nest-asyncio
+fastapi
+# document extraction library
+pdf2image
+pytesseract
+pillow
+python-docx
+PyPDF2
+pdfminer.six 
+openpyxl
+python-dotenv
