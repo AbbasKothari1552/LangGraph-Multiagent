@@ -4,12 +4,40 @@
     <meta charset="UTF-8">
     <title>Query with Document</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        textarea, input, button { width: 100%; padding: 10px; margin: 10px 0; font-size: 1rem; box-sizing: border-box; }
-        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background: #45a049; }
-        .response-box { margin-top: 20px; padding: 10px; background: #e9f5e9; border-left: 4px solid #4CAF50; white-space: pre-wrap; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #f4f4f4; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+        }
+        textarea, input, button { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 10px 0; 
+            font-size: 1rem; 
+            box-sizing: border-box; 
+        }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            border-radius: 5px;
+        }
+        button:hover { 
+            background: #45a049; 
+        }
+        button:disabled { 
+            background: #cccccc; 
+            cursor: not-allowed; 
+        }
         .file-upload-container { 
             border: 2px dashed #ccc; 
             border-radius: 8px; 
@@ -19,15 +47,13 @@
             background: #fafafa;
             transition: border-color 0.3s ease;
         }
-        .file-upload-container:hover { border-color: #4CAF50; }
-        .file-upload-container.dragover { border-color: #4CAF50; background: #f0f8f0; }
-        .file-input { display: none; }
-        .file-label { 
-            cursor: pointer; 
-            color: #666; 
-            font-size: 0.9rem;
+        .file-upload-container:hover { 
+            border-color: #4CAF50; 
         }
-        .file-label:hover { color: #4CAF50; }
+        .file-upload-container.dragover { 
+            border-color: #4CAF50; 
+            background: #f0f8f0; 
+        }
         .selected-file { 
             margin-top: 10px; 
             padding: 8px; 
@@ -42,29 +68,94 @@
             margin-left: 10px;
             font-weight: bold;
         }
-        .optional-text { color: #666; font-size: 0.8rem; margin-top: 5px; }
+        .optional-text { 
+            color: #666; 
+            font-size: 0.8rem; 
+            margin-top: 5px; 
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Send Query with Document</h2>
-        <form action="/run-graph" method="post" enctype="multipart/form-data">
-            <textarea name="query" placeholder="Enter your query..." required></textarea>
-            <input type="file" name="document" accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.tiff">
-            <button type="submit">Send Query</button>
+        
+        <div class="error" id="errorMessage"></div>
+        
+        <form id="queryForm" action="/run-graph" method="post" enctype="multipart/form-data">
+            <textarea 
+                id="query" 
+                name="query" 
+                placeholder="Enter your query..." 
+                required
+                rows="4"
+            ></textarea>
+            
+            <div class="file-upload-container" id="fileContainer">
+                <input 
+                    type="file" 
+                    id="document" 
+                    name="document" 
+                    accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.tiff"
+                    style="display: none;"
+                >
+                <label for="document" style="cursor: pointer; color: #666;">
+                    📁 Click to select a file or drag and drop here
+                </label>
+                <div class="optional-text">(Optional - PDF, DOC, TXT, CSV, Excel, Images supported)</div>
+                <div id="selectedFile" class="selected-file" style="display: none;"></div>
+            </div>
+            
+            <button type="submit" id="submitBtn">Send Query</button>
         </form>
         
+        <div class="loading" id="loadingMessage">
+            <div class="spinner"></div>
+            Processing your query... This may take a moment.
+        </div>
     </div>
-
-    <!-- for product table -->
-    <div id="productTables"></div>
-
 
     <script>
         const fileContainer = document.getElementById('fileContainer');
         const fileInput = document.getElementById('document');
         const selectedFileDiv = document.getElementById('selectedFile');
-        const data = await res.json();
+        const form = document.getElementById('queryForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
 
         // Drag and drop functionality
         fileContainer.addEventListener('dragover', (e) => {
@@ -90,13 +181,16 @@
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 displaySelectedFile(e.target.files[0]);
+            } else {
+                selectedFileDiv.style.display = 'none';
             }
         });
 
         function displaySelectedFile(file) {
+            const sizeKB = (file.size / 1024).toFixed(1);
             selectedFileDiv.innerHTML = `
-                Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)
-                <span class="remove-file" onclick="removeFile()">✕</span>
+                ✅ Selected: ${file.name} (${sizeKB} KB)
+                <span class="remove-file" onclick="removeFile()">❌</span>
             `;
             selectedFileDiv.style.display = 'block';
         }
@@ -106,77 +200,56 @@
             selectedFileDiv.style.display = 'none';
         }
 
-        async function sendQuery() {
-            const query = document.getElementById('query').value.trim();
-            const file = document.getElementById('document').files[0];
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
 
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        function showLoading() {
+            loadingMessage.classList.add('show');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+        }
+
+        function hideLoading() {
+            loadingMessage.classList.remove('show');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Send Query';
+        }
+
+        // Form submission handler
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = document.getElementById('query').value.trim();
+            
             if (!query) {
-                alert('Please enter a query.');
+                showError('Please enter a query.');
                 return;
             }
-
-            const formData = new FormData();
-            formData.append("query", query);
             
-            if (file) {
-                formData.append("document", file);
-            }
-
+            hideError();
+            showLoading();
+            
             try {
-                const res = await fetch("/run-graph", {
-                    method: "POST",
-                    body: formData
-                });
-
-                const data = await res.json();
-                document.getElementById("response").innerText = JSON.stringify(data, null, 2);
-                document.getElementById("response").style.display = "block";
+                // Let the form submit naturally to handle file uploads properly
+                form.submit();
             } catch (error) {
-                alert("Error: " + error);
+                hideLoading();
+                showError('Error: ' + error.message);
             }
-        }
+        });
 
-        // Show raw JSON (optional, debugging)
-        document.getElementById("response").innerText = JSON.stringify(data, null, 2);
-        document.getElementById("response").style.display = "block";
-
-        // Clear old tables
-        const productTables = document.getElementById("productTables");
-        productTables.innerHTML = "";
-
-        // Render product tables if available
-        if (data.product_data) {
-            for (const [productName, entries] of Object.entries(data.product_data)) {
-                const table = document.createElement("table");
-                table.border = "1";
-                table.style.marginBottom = "20px";
-                table.style.width = "100%";
-                table.style.borderCollapse = "collapse";
-
-                // Table header
-                const header = `
-                    <tr style="background:#f0f0f0">
-                        <th colspan="2">${productName}</th>
-                    </tr>`;
-                table.innerHTML = header;
-
-                // Each entry (e.g., Address, Contact, etc.)
-                entries.forEach(entry => {
-                    for (const [key, value] of Object.entries(entry)) {
-                        const row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td style="padding:8px; font-weight:bold">${key}</td>
-                            <td style="padding:8px">${value}</td>`;
-                        table.appendChild(row);
-                    }
-                });
-
-                productTables.appendChild(table);
+        // Handle page visibility to show/hide loading appropriately
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                hideLoading();
             }
-        } else {
-            productTables.innerHTML = "<p>No products found.</p>";
-        }
-
+        });
     </script>
 </body>
 </html>

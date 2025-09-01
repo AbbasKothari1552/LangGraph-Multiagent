@@ -30,7 +30,13 @@ def product_orchestrator(state:State) -> State:
             - Based on the information type, generate a dictionary of necessary fields for scraping, with clear descriptions.
             - Always include a "url" field with description: "The source URL where this information was found."
             - Decide which sources to use for this product: "mcp", "web", or both.
-            - Generate a **concise search_query** string that will return the most relevant results for this product in a search engine. This should combine the product name, any relevant attributes, and any dealer/location details from the user query if applicable.
+            - "Generate a **dealer-optimized search_query** string. 
+                - Always include keywords like 'authorized dealer', 'distributor', 'wholesale', 'supplier', 'reseller'. 
+                - If location is in user query, include it (e.g., 'Dell laptop authorized dealers in Mumbai').
+                - Use Google operators when useful:
+                -   - site:.in or site:.com for region/company domains
+                -   - intitle:dealer OR intitle:distributor
+                - Avoid generic shopping sites like Amazon/Flipkart."
 
         Output format:
         {

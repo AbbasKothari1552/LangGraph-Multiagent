@@ -5,12 +5,12 @@ from fastapi.templating import Jinja2Templates
 import shutil
 import os
 import sys
+import json
 
-from app.langgraph_runner import trigger_langgraph
+from app.langgraph_runner import trigger_langgraph, resume_langgraph
 
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from core.config import UPLOAD_DIR
+
+from app.core.config import UPLOAD_DIR
 
 app = FastAPI()
 
@@ -46,7 +46,21 @@ async def run_graph(
         # Call your LangGraph execution
         result = await trigger_langgraph(query, file_path, filename)
 
-        # Extract product_data safely
+        # Check if there's an interrupt
+        if result.get("interrupt"):
+            interrupt_data = result["interrupt"]
+            return templates.TemplateResponse(
+                "interrupt.html",
+                {
+                    "request": request,
+                    "query": query,
+                    "interrupt_message": interrupt_data.get("message", ""),
+                    "products_info": interrupt_data.get("product_info", {}),
+                    "thread_id": result.get("thread_id", "1")
+                }
+            )
+
+        # No interrupt - show results
         product_data = result.get("product_data", {})
 
         return templates.TemplateResponse(
@@ -60,3 +74,32 @@ async def run_graph(
 
     except Exception as e:
         return HTMLResponse(f"<h3>Error: {e}</h3>", status_code=500)
+    
+
+@app.post("/resume-graph")
+async def resume_graph_endpoint(
+    request: Request,
+    thread_id: str = Form(...),
+    verified_products: str = Form(...)  # JSON string of verified products
+):
+    """Resume the graph after user verification."""
+    try:
+        # Parse the verified products JSON
+        products_info = json.loads(verified_products)
+        
+        # Resume the graph with verified data
+        result = await resume_langgraph(thread_id, products_info)
+        
+        # Return the final results
+        product_data = result.get("product_data", {})
+        return templates.TemplateResponse(
+            "products.html",
+            {
+                "request": request,
+                "query": result.get("query", ""),
+                "product_data": product_data
+            }
+        )
+        
+    except Exception as e:
+        return HTMLResponse(f"<h3>Error resuming graph: {e}</h3>", status_code=500)

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify & Edit Product Queries</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { margin-bottom: 15px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #f5f5f5; }
+        input[type="text"] { width: 95%; padding: 6px; }
+        button { margin-top: 15px; padding: 10px 20px; }
+    </style>
+    <script>
+        function prepareForm() {
+            const products = [];
+            document.querySelectorAll(".product-row").forEach(row => {
+                const name = row.querySelector("[name='name']").value;
+                const description = row.querySelector("[name='description']").value;
+                const information_type = row.querySelector("[name='information_type']").value;
+                const search_query = row.querySelector("[name='search_query']").value;
+
+                const fields = JSON.parse(row.querySelector("[name='fields']").value);
+                const sources = JSON.parse(row.querySelector("[name='sources']").value);
+
+                products.push({
+                    name,
+                    description,
+                    information_type,
+                    search_query,
+                    fields,
+                    sources
+                });
+            });
+
+            // Build the same structure LangGraph expects
+            const products_info = { "products": products };
+
+            document.getElementById("verified_products").value = JSON.stringify(products_info);
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <h2>Verify & Edit Queries for Products</h2>
+    <p>{{ interrupt_message }}</p>
+
+    <form method="post" action="/resume-graph" onsubmit="return prepareForm();">
+        <input type="hidden" name="thread_id" value="{{ thread_id }}">
+        <input type="hidden" id="verified_products" name="verified_products">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Search Query (Editable)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products_info.products %}
+                <tr class="product-row">
+                    <!-- Show only search_query for user to edit -->
+                    <td>
+                        <span>{{ product.name }}</span>
+                        <input type="hidden" name="name" value="{{ product.name }}">
+                    </td>
+                    <td><input type="text" name="search_query" value="{{ product.search_query }}"></td>
+
+                    <!-- Hidden fields to preserve structure -->
+                    <input type="hidden" name="description" value="{{ product.description }}">
+                    <input type="hidden" name="information_type" value="{{ product.information_type }}">
+                    <input type="hidden" name="fields" value='{{ product.fields | tojson }}'>
+                    <input type="hidden" name="sources" value='{{ product.sources | tojson }}'>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit">Submit Verified Queries</button>
+    </form>
+</body>
+</html>

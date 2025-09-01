@@ -7,6 +7,7 @@ from app.agents.parser_agent import parser_agent
 from app.agents.initent_classification_agent import intent_classifier_agent
 from app.agents.product_orchestrator_agent import product_orchestrator
 from app.agents.general_orchestrator_agent import general_orchestrator
+from app.agents.query_verification_node import query_verification
 from app.agents.spreadsheet_agent import spreadsheet_agent
 # import main graph state
 from app.state.main_graph_state import State
@@ -22,6 +23,7 @@ graph_builder.add_node("ParserAgent", parser_agent)
 graph_builder.add_node("IntentClassifier", intent_classifier_agent)
 graph_builder.add_node("ProductOrchestrator", product_orchestrator)
 graph_builder.add_node("GeneralOrchestrator", general_orchestrator)
+graph_builder.add_node("QueryVerification", query_verification)
 graph_builder.add_node("ProductSubgraph", sub_graph, return_state=True) # compiled subgraph
 graph_builder.add_node("SpreadSheetAgent", spreadsheet_agent)
 
@@ -46,8 +48,11 @@ graph_builder.add_conditional_edges(
     }
 )
 
+graph_builder.add_edge("GeneralOrchestrator", END)
+graph_builder.add_edge("ProductOrchestrator", "QueryVerification")
+
 graph_builder.add_conditional_edges(
-    "ProductOrchestrator",
+    "QueryVerification",
     fanout_products_node,
     ["ProductSubgraph"]
 )
@@ -55,7 +60,7 @@ graph_builder.add_conditional_edges(
 # Add connection from ProductOrchestrator to ProductSubgraph
 # graph_builder.add_edge("ProductOrchestrator", "ProductSubgraph")
 
-graph_builder.add_edge("GeneralOrchestrator", END)
+
 graph_builder.add_edge("ProductSubgraph", "SpreadSheetAgent")
 graph_builder.add_edge("SpreadSheetAgent", END)
 
@@ -76,7 +81,7 @@ graph = graph_builder.compile(
 
 # try:
 #     # Fix the file path to use forward slashes
-#     with open("Subgraph_graph.png", "wb") as f:
+#     with open("main_graph.png", "wb") as f:
 #         f.write(graph.get_graph().draw_mermaid_png())
 # except Exception as e:
 #     # This requires some extra dependencies and is optional
